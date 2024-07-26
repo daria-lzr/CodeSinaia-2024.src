@@ -1,229 +1,383 @@
 import { CoreCode } from "./core/coreCode.js";
 import { console } from "./main.js";
-import { graph } from "./main.js";
-import { queue } from "./main.js";
-import { stack } from "./main.js";
+import { graph, queue, stack } from "./main.js";
+import { ColorIndex } from "./adt/graph.js";
+
+
 
 export class UserCode extends CoreCode {
 
-    async isList(graph) {
-        let pass = true;
-        // reset the state in the graph nodes
-        graph.nodes.forEach((n) => { n.state = 0; n.toggleColor(-1); })
-
-        // compute the count of incoming edges into each node
-        //console.outln("2. Compute in-degrees.");
-        graph.nodes.forEach((n) => {
-            n.neighbors.forEach((neighbor) => { neighbor.state++; });
-        });
-
-        // determine the head of the list
-        let head = graph.nodes.filter(n => n.state == 0)[0];
-        pass = (head != null);
-
-        // scan all nodes starting from the head
-        while (pass) {
-            // check if the current node is valid
-            pass = (head.colorIndex == 0) && (head.neighbors.length <= 1);
-            // mark the current node
-            head.toggleColor(1);
+    /**
+     * Toggles the colors of each node, if any
+     */
+    async toggleNodes() {
+        for(const node of graph.nodes) {
             await this.step();
-            // if all good but there are no successors, break
-            if (pass && head.neighbors.length == 0) {
-                // verify all nodes have been visited
-                pass = graph.nodes.filter(n => n.colorIndex != 0).length == graph.nodes.length;
-                break;
-            }
-            // move to the next node
-            head = head.neighbors[0];
+            node.toggleColor(1);
         }
         // for(let i = 0; i < graph.nodes.length; i++) {
         //     let node = graph.nodes[i];
         //     await this.step();
         //     node.toggleColor(1); 
         // }
-        return pass;
     }
 
-    async isBinaryTree(graph) {
-        let pass = true;
-        // reset the state in the graph nodes
-        graph.nodes.forEach((n) => { n.state = 0; n.toggleColor(-1); })
-
-        // compute the count of incoming edges into each node
-        graph.nodes.forEach((n) => {
-            n.neighbors.forEach((neighbor) => { neighbor.state++; });
-        });
-
-        // determine the root of the tree
-        let root = graph.nodes.filter(n => n.state == 0)[0];
-
-        // verify the root exists, it is a binary tree, and there were no nodes left unchecked.
-        pass = (root != null)
-            && await this.isBinaryTreeHelper(root)
-            && graph.nodes.filter(n => n.colorIndex != 0).length == graph.nodes.length;
-
-        // return the result
-        return pass;
-    }
-
-    async isBinaryTreeHelper(node) {
-        // verify the node have been visited already
-        if (node.colorIndex != 0) {
-            return false;
+    /**
+     * Toggles the colors of each edge, if any
+     */
+    async toggleEdges() {
+        for(let i=0; i < graph.edges.length; i++) {
+            await this.step();
+            graph.edges[i].toggleColor(1);
         }
-        // mark the node as visited
-        node.toggleColor(1);
+    }
+
+
+    // async isSinglyLinkedList() {
+    //     console.outln("Testing singly linked list");
+    //     for(const node of graph.nodes) {
+    //         for(const n of node.neighbors) {
+    //             n.state_out++;
+    //         }
+    //     }
+
+    //     let heads = graph.nodes.filter(n => n.state_out == 0); // filter all nodes with in-degree 0
+    //     if (heads.length != 1) {
+    //         return false;
+    //     }
+
+    //     for(const node of graph.node){
+    //         for(const n of node.neighbors){
+                
+    //         }
+    //     }
+    //     return true;
+    // }
+
+
+    async isSinglyLinkedList() {
+        console.outln("Testing singly linked list");
+    
+        for (const node of graph.nodes) {
+            node.state_out = 0; // Reset state_out to count incoming edges
+        }
+        
+        for (const node of graph.nodes) {
+            for (const neighbor of node.neighbors) {
+                neighbor.state_out++;
+            }
+        }
+    
+        // Step 2: Identify the head node (node with zero incoming edges)
+        let heads = graph.nodes.filter(n => n.state_out == 0);//putting in the list "heads" only the nodes with 0 in-degree
+        if (heads.length != 1) { //if there is only one node with 0 in-degree, that means that node is the head of the linked list and there are no other isolated nodes
+            return false; 
+        }
+    
+        // Step 3: Check that each node has at most one outgoing edge
+        for (const node of graph.nodes) {
+            if (node.neighbors.length > 1) {//if the nodes have the out-degree greater than 1, the graph is not a linked list; no need to test if the head has the out-degree 0 because we already checked it in the previous if state_outment
+                return false; 
+            }
+        }
+    
+        return true;
+    }
+    
+    async isDoublyLinkedList() {
+        console.outln("Testing doubly linked list");
+    
+        //Counting incoming and outgoing edges for each node
+        for (const node of graph.nodes) {
+            node.state_out = 0; // Reset state_out to count incoming edges
+            node.state_in = 0; // Reset state_in to count outgoing edges
+        }
+        for (const node of graph.nodes) {
+            for (const neighbor of node.neighbors) {
+                neighbor.state_out++; // Count incoming edges
+                node.state_in++; // Count outgoing edges
+            }
+        }
+    
+        //Identifying head and tail nodes
+        let heads = graph.nodes.filter(n => n.state_out == 1);
+        let tails = graph.nodes.filter(n => n.state_in == 1);
+        if (heads.length != 2 || tails.length != 2) {
+            return false; // There should be exactly one head and one tail node
+        }
+    
+        //Check that each node has at most one incoming edge and one outgoing edge
+        for (const node of graph.nodes) {
+            if(node.state_out!=1 && node.state_in!=1)
+                if (node.state_out > 2 || node.state_in > 2) {
+                    return false; // More than one incoming or outgoing edge
+                }
+        }
+    
+        return true;
+    }
+    
+
+    // async isDoublyLinkedList() {
+    //     console.outln("Testing doubly linked list");
+
+    //     for (const node of graph.nodes) {
+    //         node.state_out = 0; // Reset state_out to count incoming edges
+    //     }
+
+    //     for (const node of graph.nodes) {
+    //         for (const neighbor of node.neighbors) {
+    //             neighbor.state_out++;//counting the in-edges
+    //         }
+    //     }
+
+    //     let inEdgesNodes = graph.nodes.filter(n => n.state_out == 2);
+    //     if(inEdgesNodes.length != graph.nodes.length){
+    //         return false;
+    //     }
+
+
+    //     let outEdgesNodes = graph.nodes.filter(n => n.neighbor.length == 2);
+    //     if(outEdgesNodes.length != graph.nodes.length)
+    //             return false;
+
+
+    //     let head = graph.nodes.filter(n => n.state_out == 0);
+    //     let tail = graph.nodes.filter(n => n.neighbor.length == 0);
+    //     if(head.length!=1 && tail.length !=1){
+    //         return false;
+    //     }
+    //     return true;
+        
+    // }
+    
+    async treeTravelTraversalQueue(){
+        let root = graph.nodes.filter(n => n.colorIndex != 0)[0];//the root is going to be the node with a different color than default(gray color)
+        root.toggleColor(1);
         await this.step();
 
-        // assume test is passing and update this assumption based
-        // on the number of descendant nodes.
-        let pass = true;
-        switch (node.neighbors.length) {
-            case 0:
-                // no descendents => test is passing
-                break;
-            case 2:
-                // two descendents => verify the second one and let 
-                // the execution fall through into the next case
-                pass = await this.isBinaryTreeHelper(node.neighbors[1]);
-            case 1:
-                // one descendent => if not already failed on the second, verify it
-                pass = pass && await this.isBinaryTreeHelper(node.neighbors[0]);
-                break;
-            default:
-                // more than two descendents => not a binary tree
-                pass = false;
-                break;
-        }
-
-        // return the result
-        return pass;
-    }
-
-    async bfsTraverse() {
-        let root = graph.nodes.filter(n => n.colorIndex != 0)[0];
-        if (root == null) {
-            console.outln("Root node could not be found!");
-            return;
-        }
+        //Adding root the queue
         queue.clear();
         queue.enqueue(root);
         await this.step();
-        while (queue.size() != 0) {
+
+
+        while(queue.size() !=0){
             let node = queue.dequeue();
             node.toggleColor(1);
             console.out(node.label);
             await this.step();
-            for (const n of node.neighbors) {
-                queue.enqueue(n);
-            }
-            if (node.neighbors.length > 0) {
-                await this.step();
-            }
-        }
-        console.outln();
-    }
 
-    async dfsTraverse() {
-        let root = graph.nodes.filter(n => n.colorIndex != 0)[0];
-        if (root == null) {
-            console.outln("Root node could not be found!");
-            return;
+
+            // Putting the children of the node in the queue
+            // if(node.neighbors[0] != null){
+            //     queue.enqueue(node.neighbor[0]);
+            // }
+
+            // if(node.neighbors[1] != null){
+            //     queue.enqueue(node.neighbors[1]);
+            // }
+
+
+            // for(const n of node.neighbors){
+            //     queue.enqueue(n);
+            // }
+
+            node.neighbors.forEach((n) => {queue.enqueue(n)});
         }
-        stack.clear();
-        stack.push(root);
+
+    }
+  
+
+    async treeTravelTraversalStack(){
+        let root = graph.nodes.filter(n => n.colorIndex != 0)[0];//the root is going to be the node with a different color than default(gray color)
+        root.toggleColor(1);
         await this.step();
-        while (stack.size() != 0) {
-            let node = stack.pop();
+
+        //Adding root the queue
+        stack.clear();
+        stack.push(root); //enque
+        await this.step();
+
+
+        while(stack.size() !=0){
+            let node = stack.pop(); //deque
             node.toggleColor(1);
             console.out(node.label);
             await this.step();
-            for (let i = node.neighbors.length - 1; i >= 0; i--) {
-                stack.push(node.neighbors[i]);
-            }
-            if (node.neighbors.length > 0) {
-                await this.step();
-            }
+
+            node.neighbors.reverse().forEach((n) => {stack.push(n)});
+
+
+
         }
-        console.outln();
+
     }
 
-    async postfixExpression() {
-        let root = graph.nodes.filter(n => n.colorIndex != 0)[0];
-        if (root == null) {
-            console.outln("Root node could not be found!");
+
+    //STILL NEED TO WORK HERE
+    async treeTravelTraversalRecursive(node) {
+        if (!node) return; // Base case: if the node is null, return
+    
+        node.toggleColor(1);
+        console.log(node.label);
+        await this.step();
+    
+        for (let neighbor of node.neighbors) {
+            await treeTravelTraversalRecursive.call(this, neighbor);
+        }
+    }
+    
+    async  startTraversal() {
+        let root = graph.nodes.filter(n => n.colorIndex != 0)[0]; // Find the root node
+        await treeTravelTraversalRecursive.call(this, root);
+    }
+
+
+
+    async spanningTree() {
+        let coloredNodes = graph.nodes.filter(n => n.colorIndex != 0);
+        if (coloredNodes.length != 1) {
+            console.outln("No root!");
             return;
         }
-        stack.clear();
+        let root = coloredNodes[0];
+        root.toggleColor(1);
         queue.clear();
-        root.toggleColor(-1);
+        queue.enqueue(root);
         await this.step();
-        stack.push(root);
-        while (stack.size() > 0) {
-            let node = stack.pop();
-            if (node.colorIndex != 0) {
-                queue.enqueue(node);
-            } else {
-                node.toggleColor(1);
-                for (const n of node.neighbors) {
-                    stack.push(n);
-                }
-                stack.push(node);
-            }
+        while(queue.size() != 0) {
+            let node = queue.dequeue();
+            node.colorIndex = ColorIndex.Red;
             await this.step();
-        }
-        while (queue.size() > 0) {
-            stack.push(queue.dequeue())
-        }
-        while (stack.size() > 0) {
-            console.out(stack.pop().label);
-        }
-        console.outln();
-    }
-
-    async prefixExpression() {
-        let root = graph.nodes.filter(n => n.colorIndex != 0)[0];
-        if (root == null) {
-            console.outln("Root node could not be found!");
-            return;
-        }
-        stack.clear();
-        queue.clear();
-        root.toggleColor(-1);
-        await this.step();
-        stack.push(root);
-        while (stack.size() > 0) {
-            let node = stack.pop();
-            node.toggleColor(1);
-            for (let i = node.neighbors.length - 1; i >= 0; i--) {
-                stack.push(node.neighbors[i]);
-            }
-            queue.enqueue(node);
-            await this.step();
-        }
-        while (queue.size() > 0) {
-            console.out(queue.dequeue().label);
-        }
-        console.outln();
-    }
-
-    async isSinglyLinkedList() {
-        console.outln("Testing singly linked list");
-        for (const node of graph.nodes) {
             for (const n of node.neighbors) {
-                //n.state = n.state+1;
-                n.state++;
+               if (n.colorIndex == ColorIndex.Gray) {
+                  n.colorIndex = ColorIndex.Green;
+                  let edge = graph.getEdge(node ,n);
+                  edge.colorIndex = ColorIndex.Yellow;
+                  queue.enqueue(n);
+              }
             }
+            await this.step();
+            node.colorIndex = ColorIndex.Yellow;
         }
-
-        let heads = graph.nodes.filter(n => n.state == 0); // filter all nodes with in-degree 0
-        if (heads.length != 1) {
-            return false;
-        }
-
-        return true;
     }
+
+
+    async runBFS() {
+        // pick up inputs
+        let coloredNodes = graph.nodes.filter((n) => n.colorIndex != 0);
+        if (coloredNodes.length != 2) {
+          console.outln("Incorrect input. Expect 2 colored nodes!");
+          return;
+        }
+        coloredNodes = coloredNodes.sort((n1, n2) => n1.colorIndex - n2.colorIndex);
+        let startNode = coloredNodes[0];
+        let endNode = coloredNodes[1];
+        startNode.colorIndex = ColorIndex.Blue;
+        endNode.colorIndex = ColorIndex.Green;
+        console.outln(
+          `start=${startNode.label} (blue) end=${endNode.label} (green)`
+        );
+        // clear initial state
+        graph.nodes.forEach((n) => {
+          n.state = null;
+        });
+        queue.clear();
+        queue.enqueue(startNode);
+        startNode.state = startNode;
+        // loop until queue empty
+        while (queue.size() != 0) {
+          let node = queue.dequeue();
+          if (node != startNode && node != endNode) {
+            node.colorIndex = ColorIndex.Magenta;
+          }
+          await this.step();
+          for (const n of node.neighbors) {
+            if (n.state != null) {
+              continue;
+            }
+            n.state = node;
+    
+            queue.enqueue(n);
+            graph.getEdge(node, n).colorIndex = ColorIndex.Yellow;
+            if (n === endNode) {
+              console.outln("End node is found!");
+              queue.clear();
+              break;
+            }
+            n.colorIndex = ColorIndex.Red;
+            await this.step();
+          }
+        }
+        let crtNode = endNode;
+        while (crtNode != startNode) {
+          graph.getEdge(crtNode, crtNode.state).colorIndex = ColorIndex.Green;
+          if (crtNode != endNode) {
+            crtNode.colorIndex = ColorIndex.Green;
+          }
+          await this.step();
+          crtNode = crtNode.state;
+        }
+      }
+    
+      async runDijkstra() {
+        // pick up inputs
+        let coloredNodes = graph.nodes.filter((n) => n.colorIndex != 0);
+        if (coloredNodes.length != 2) {
+          console.outln("Incorrect input. Expect 2 colored nodes!");
+          return;
+        }
+        coloredNodes = coloredNodes.sort((n1, n2) => n1.colorIndex - n2.colorIndex);
+        let startNode = coloredNodes[0];
+        let endNode = coloredNodes[1];
+        startNode.colorIndex = ColorIndex.Blue;
+        endNode.colorIndex = ColorIndex.Green;
+        console.outln(`start=${startNode.label} (blue) end=${endNode.label} (green)`);
+
+        // clear initial state
+        graph.nodes.forEach((n) => {
+          n.state = null;
+          n.cost = Infinity;
+        });
+        queue.clear();
+        queue.enqueue(startNode);
+        startNode.state = startNode;
+        startNode.cost = 0;
+        // loop until queue empty
+        while (queue.size() != 0) {
+          let node = queue.dequeue();
+          if (node != startNode && node != endNode) {
+            node.colorIndex = ColorIndex.Magenta;
+          }
+          await this.step();
+          for (const n of node.neighbors) {
+            let newCost = node.cost + node.distance(n);
+            if (n.cost < newCost) {
+              continue;
+            }
+            n.state = node;
+            n.cost = newCost;
+            queue.enqueue(n);
+            graph.getEdge(node, n).colorIndex = ColorIndex.Yellow;
+            n.colorIndex = ColorIndex.Red;
+            await this.step();
+          }
+        }
+        let crtNode = endNode;
+        while (crtNode != startNode) {
+          graph.getEdge(crtNode, crtNode.state).colorIndex = ColorIndex.Green;
+          if (crtNode != endNode) {
+            crtNode.colorIndex = ColorIndex.Green;
+          }
+          await this.step();
+          crtNode = crtNode.state;
+        }
+      }
+
+
+    
+  
 
     /**
      * Entry point for user-defined code.
@@ -231,28 +385,42 @@ export class UserCode extends CoreCode {
     async run() {
         console.outln("---- Starting user-defined code! ----");
 
-        // // linked list check
-        // console.outln("Linked-list check..");
-        // let pass = await this.isList(graph);
-        // console.outln(pass ? "Graph IS a linked list!" : "Graph is NOT a linked list!");
+        // console.out("Toggling nodes color ... ");
+        // await this.toggleNodes();
+        // console.outln("DONE");
+        // await this.step();
 
-        // // tree check
-        // console.outln("Binary tree check..");
-        // pass = await this.isBinaryTree(graph);
-        // console.outln(pass ? "Graph IS a binary tree!" : "Graph is NOT a binary tree!");
+        // console.out("Toggling edges color ... ");
+        // await this.toggleEdges();
+        // console.outln("DONE");
+        // await this.step();
 
-        // console.outln("Breath-first tree traversal:");
-        // await this.bfsTraverse();
+        //Tuesday
+        // let var_isSinglyLinkedList = await this.isSinglyLinkedList();
+        // if (var_isSinglyLinkedList) {
+        //     console.outln("Yes, singly linked list!");
+        // } else {
+        //     console.outln("No, not a singly linked list!");
+        // }
 
-        // console.outln("\nDepth-first tree traversal:");
-        // await this.dfsTraverse();
 
-        // console.outln("Postfix Expression!")
-        // await this.postfixExpression();
+        // let var_isDoublyLinkedList  = await this.isDoublyLinkedList();
+        // if (var_isDoublyLinkedList) {
+        //     console.outln("Yes, dubly linked list!");
+        // } else {
+        //     console.outln("No, not a dubly linked list!");
+        // }
 
-        // console.outln("Prefix Expression!")
-        // await this.prefixExpression();
 
+        //Wednesday
+        //await this.treeTravelTraversalQueue();
+        //await this.treeTravelTraversalStack();
+        //await this.startTraversal();
+
+        //await this.spannigTree();
+
+        await this.runDijkstra();
         console.outln("---- User-defined code ended! ----");
+
     }
 }
